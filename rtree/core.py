@@ -242,6 +242,16 @@ rt.Index_NearestNeighbors_id.argtypes = [ctypes.c_void_p,
 rt.Index_NearestNeighbors_id.restype = ctypes.c_int
 rt.Index_NearestNeighbors_id.errcheck = check_return
 
+rt.Index_Intersects_internal.argtypes = [ctypes.c_void_p,
+                                         ctypes.POINTER(ctypes.c_double),
+                                         ctypes.POINTER(ctypes.c_double),
+                                         ctypes.c_uint32,
+                                         ctypes.POINTER(
+                                         ctypes.POINTER(ctypes.c_int64)),
+                                         ctypes.POINTER(ctypes.c_uint64)]
+rt.Index_Intersects_internal.restype = ctypes.c_int
+rt.Index_Intersects_internal.errcheck = check_return
+
 rt.Index_GetLeaves.argtypes = [ctypes.c_void_p,
                                ctypes.POINTER(ctypes.c_uint32),
                                ctypes.POINTER(ctypes.POINTER(ctypes.c_uint32)),

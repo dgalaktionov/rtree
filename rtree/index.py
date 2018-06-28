@@ -426,6 +426,20 @@ class Index(object):
 
         return p_num_results.value
 
+    def internal_intersection(self, coordinates):
+        """Similar to intersection, but returns intermediate nodes instead"""
+
+        p_mins, p_maxs = self.get_coordinate_pointers(coordinates)
+        p_num_results = ctypes.c_uint64(0)
+        it = ctypes.pointer(ctypes.c_int64())
+        core.rt.Index_Intersects_internal(self.handle,
+                                          p_mins,
+                                          p_maxs,
+                                          self.properties.dimension,
+                                          ctypes.byref(it),
+                                          ctypes.byref(p_num_results))
+        return self._get_ids(it, p_num_results.value)
+
     def intersection(self, coordinates, objects=False):
         """Return ids or objects in the index that intersect the given
         coordinates.
