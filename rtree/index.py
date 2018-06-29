@@ -426,20 +426,6 @@ class Index(object):
 
         return p_num_results.value
 
-    def internal_intersection(self, coordinates):
-        """Similar to intersection, but returns intermediate nodes instead"""
-
-        p_mins, p_maxs = self.get_coordinate_pointers(coordinates)
-        p_num_results = ctypes.c_uint64(0)
-        it = ctypes.pointer(ctypes.c_int64())
-        core.rt.Index_Intersects_internal(self.handle,
-                                          p_mins,
-                                          p_maxs,
-                                          self.properties.dimension,
-                                          ctypes.byref(it),
-                                          ctypes.byref(p_num_results))
-        return self._get_ids(it, p_num_results.value)
-
     def intersection(self, coordinates, objects=False):
         """Return ids or objects in the index that intersect the given
         coordinates.
@@ -506,13 +492,48 @@ class Index(object):
 
         it = ctypes.pointer(ctypes.c_void_p())
 
-        core.rt.Index_Intersects_obj(self.handle,
-                                     p_mins,
-                                     p_maxs,
-                                     self.properties.dimension,
-                                     ctypes.byref(it),
-                                     ctypes.byref(p_num_results))
-        return self._get_objects(it, p_num_results.value, objects)
+        if objects == 'internal':
+            core.rt.Index_Intersects_internal(  self.handle,
+                                                p_mins,
+                                                p_maxs,
+                                                self.properties.dimension,
+                                                ctypes.byref(it),
+                                                ctypes.byref(p_num_results))
+            return self._get_internals(it, p_num_results.value)
+        else:
+            core.rt.Index_Intersects_obj(   self.handle,
+                                            p_mins,
+                                            p_maxs,
+                                            self.properties.dimension,
+                                            ctypes.byref(it),
+                                            ctypes.byref(p_num_results))
+            return self._get_objects(it, p_num_results.value, objects)
+
+    def _get_internals(self, it, num_results):
+        # take the pointer, yield the results objects and free
+        items = ctypes.cast(
+            it, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p * num_results)))
+        its = ctypes.cast(
+            items, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p)))
+
+        try:
+            for i in range(num_results):
+                item = Item(lambda x: None, items[i])
+                length = ctypes.c_uint64(0)
+                d = ctypes.pointer(ctypes.c_uint8(0))
+                core.rt.IndexItem_GetData(items[i], ctypes.byref(d), ctypes.byref(length))
+                c = ctypes.cast(d, ctypes.POINTER(ctypes.c_void_p))
+                n_obj = int(length.value/8)
+                if length.value == 0:
+                    core.rt.Index_Free(c)
+                    return None
+                item.object = list(ctypes.cast(d, ctypes.POINTER(ctypes.c_uint64 * n_obj)).contents)
+                core.rt.Index_Free(c)
+                yield item
+            core.rt.Index_DestroyObjResults(its, num_results)
+        except:
+            core.rt.Index_DestroyObjResults(its, num_results)
+            raise
 
     def _get_objects(self, it, num_results, objects):
         # take the pointer, yield the result objects and free
